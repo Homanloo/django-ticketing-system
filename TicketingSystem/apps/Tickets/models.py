@@ -1,7 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
 from apps.Users.models import Order
-from django.utils import timezone
 import uuid
 
 
@@ -61,6 +60,7 @@ class TicketMessage(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Ticket Message'
         verbose_name_plural = 'Ticket Messages'
+
 
 class TicketAttachment(models.Model):
     """
