@@ -143,3 +143,5 @@ SPECTACULAR_SETTINGS = {
     'COMPONENT_SPLIT_REQUEST': True,
     'SCHEMA_PATH_PREFIX': r'/api/v[0-9]',
 }
+# Custom User Model
+AUTH_USER_MODEL = 'Users.User'
