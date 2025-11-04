@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 from apps.Users.models import Order
 import uuid
 
@@ -24,9 +24,9 @@ class Ticket(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tickets')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tickets')
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='tickets', null=True, blank=True)
-    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='assigned_tickets', null=True, blank=True)
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name='assigned_tickets', null=True, blank=True)
     topic = models.CharField(max_length=255)
     description = models.TextField(max_length=10000)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
@@ -48,7 +48,7 @@ class TicketMessage(models.Model):
     """
 
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='messages')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='messages')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='messages')
     message = models.TextField(max_length=10000)
     is_staff_message = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -73,7 +73,7 @@ class TicketAttachment(models.Model):
     filename = models.CharField(max_length=255)
     filesize = models.IntegerField(null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploaded_attachments')
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='uploaded_attachments')
 
     def __str__(self):
         return f"Attachment #{self.id} - {self.filename}"
@@ -109,7 +109,7 @@ class TicketActivity(models.Model):
 
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='activities')
     action = models.CharField(max_length=30, choices=ACTION_CHOICES)
-    performed_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='activities')
+    performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='activities')
     details = models.TextField(max_length=500, blank=True, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
