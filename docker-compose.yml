@@ -33,6 +33,23 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./Frontend/ticketing-system
+      dockerfile: Dockerfile
+    container_name: ticketing-system-ui
+    image: nextjs-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./Frontend/ticketing-system:/app
+      - /app/node_modules
+      - /app/.next
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+
+
 
 
 
