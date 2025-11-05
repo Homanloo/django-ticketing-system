@@ -4,9 +4,11 @@ from .views import (
     TicketDetailView,
     TicketMessageListView,
     TicketAttachmentUploadView,
+    TicketAttachmentDeleteView,
     TicketActivityListView,
     MyTicketsView,
     AssignedTicketsView,
+    UserOrdersView,
 )
 
 app_name = 'tickets'
@@ -21,6 +23,7 @@ urlpatterns = [
     
     # Ticket attachment endpoints
     path('tickets/<uuid:ticket_id>/attachments/', TicketAttachmentUploadView.as_view(), name='ticket-attachments'),
+    path('tickets/<uuid:ticket_id>/attachments/<int:attachment_id>/', TicketAttachmentDeleteView.as_view(), name='ticket-attachment-delete'),
     
     # Ticket activity endpoints
     path('tickets/<uuid:ticket_id>/activities/', TicketActivityListView.as_view(), name='ticket-activities'),
@@ -28,5 +31,8 @@ urlpatterns = [
     # User-specific ticket endpoints
     path('my-tickets/', MyTicketsView.as_view(), name='my-tickets'),
     path('assigned-tickets/', AssignedTicketsView.as_view(), name='assigned-tickets'),
+    
+    # Order endpoints
+    path('my-orders/', UserOrdersView.as_view(), name='my-orders'),
 ]
 

@@ -64,11 +64,11 @@ class TicketMessage(models.Model):
 
 class TicketAttachment(models.Model):
     """
-    Attachment to a ticket message.
+    Attachment to a ticket (optionally linked to a message).
     """
 
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='attachments')
-    message = models.ForeignKey(TicketMessage, on_delete=models.CASCADE, related_name='attachments')
+    message = models.ForeignKey(TicketMessage, on_delete=models.CASCADE, related_name='attachments', null=True, blank=True)
     file = models.FileField(upload_to='ticket_attachments/')
     filename = models.CharField(max_length=255)
     filesize = models.IntegerField(null=True, blank=True)

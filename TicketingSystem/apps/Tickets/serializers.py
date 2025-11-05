@@ -133,7 +133,7 @@ class TicketCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ticket
         fields = [
-            'order', 'topic', 'description', 'priority'
+            'order', 'topic', 'description'
         ]
 
     def validate_description(self, value):
@@ -150,6 +150,16 @@ class TicketCreateSerializer(serializers.ModelSerializer):
         """
         if not value or not value.strip():
             raise serializers.ValidationError("Topic cannot be empty.")
+        return value
+    
+    def validate_order(self, value):
+        """
+        Validate that the order belongs to the user creating the ticket.
+        """
+        if value:
+            request = self.context.get('request')
+            if request and value.user != request.user:
+                raise serializers.ValidationError("You can only create tickets for your own orders.")
         return value
 
 

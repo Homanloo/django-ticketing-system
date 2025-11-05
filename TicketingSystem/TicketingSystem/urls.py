@@ -4,6 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from .views import index
 
 urlpatterns = [
     # Admin
@@ -20,9 +21,17 @@ urlpatterns = [
 
     # User API
     path('api/v1/users/', include('apps.Users.urls')),
+    
+    # Frontend
+    path('', index, name='home'),
 ]
 
-# Serve media files in development
+# Serve static and media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    # Serve from STATICFILES_DIRS in development
+    from django.contrib.staticfiles.views import serve
+    from django.urls import re_path
+    urlpatterns += [
+        re_path(r'^static/(?P<path>.*)$', serve),
+    ]

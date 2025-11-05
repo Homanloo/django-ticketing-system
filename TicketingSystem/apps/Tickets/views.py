@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from django.utils import timezone
 from .models import Ticket, TicketMessage, TicketAttachment, TicketActivity
+from apps.Users.models import Order
 from .serializers import (
     TicketListSerializer,
     TicketDetailSerializer,
@@ -14,6 +15,7 @@ from .serializers import (
     TicketMessageCreateSerializer,
     TicketAttachmentSerializer,
     TicketActivitySerializer,
+    OrderSerializer,
 )
 
 
@@ -77,7 +79,7 @@ class TicketListView(APIView):
         }
     )
     def post(self, request):
-        serializer = TicketCreateSerializer(data=request.data)
+        serializer = TicketCreateSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             ticket = serializer.save(user=request.user)
             
@@ -292,13 +294,7 @@ class TicketMessageListView(APIView):
                     is_staff_message=request.user.is_staff
                 )
                 
-                # Create activity log
-                TicketActivity.objects.create(
-                    ticket=ticket,
-                    action='message_added',
-                    performed_by=request.user,
-                    details=f'{"Staff" if request.user.is_staff else "User"} added a message'
-                )
+                # Activity log is automatically created by the signal
                 
                 detail_serializer = TicketMessageSerializer(message)
                 return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
@@ -312,20 +308,45 @@ class TicketMessageListView(APIView):
 
 class TicketAttachmentUploadView(APIView):
     """
-    Upload an attachment to a ticket message.
+    Upload or list attachments for a ticket.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
+        operation_id='list_ticket_attachments',
+        summary='List Ticket Attachments',
+        description='Get all attachments for a specific ticket.',
+        responses={
+            200: TicketAttachmentSerializer(many=True),
+            404: {'description': 'Ticket not found'},
+        }
+    )
+    def get(self, request, ticket_id):
+        try:
+            if request.user.is_staff:
+                ticket = Ticket.objects.get(pk=ticket_id)
+            else:
+                ticket = Ticket.objects.get(pk=ticket_id, user=request.user)
+            
+            attachments = ticket.attachments.all().order_by('-uploaded_at')
+            serializer = TicketAttachmentSerializer(attachments, many=True, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Ticket.DoesNotExist:
+            return Response(
+                {"error": "Ticket not found or you don't have permission to access it"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @extend_schema(
         operation_id='upload_ticket_attachment',
         summary='Upload Attachment',
-        description='Upload a file attachment to a ticket message.',
+        description='Upload a file attachment to a ticket.',
         request={
             'multipart/form-data': {
                 'type': 'object',
                 'properties': {
                     'file': {'type': 'string', 'format': 'binary'},
-                    'message_id': {'type': 'string', 'format': 'uuid'},
+                    'message_id': {'type': 'string', 'format': 'uuid', 'required': False},
                 }
             }
         },
@@ -342,22 +363,25 @@ class TicketAttachmentUploadView(APIView):
             else:
                 ticket = Ticket.objects.get(pk=ticket_id, user=request.user)
             
-            message_id = request.data.get('message_id')
             file = request.FILES.get('file')
             
-            if not message_id or not file:
+            if not file:
                 return Response(
-                    {"error": "Both message_id and file are required"},
+                    {"error": "File is required"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            try:
-                message = TicketMessage.objects.get(pk=message_id, ticket=ticket)
-            except TicketMessage.DoesNotExist:
-                return Response(
-                    {"error": "Message not found"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            # Message is optional - can attach directly to ticket
+            message = None
+            message_id = request.data.get('message_id')
+            if message_id:
+                try:
+                    message = TicketMessage.objects.get(pk=message_id, ticket=ticket)
+                except TicketMessage.DoesNotExist:
+                    return Response(
+                        {"error": "Message not found"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
             
             attachment = TicketAttachment.objects.create(
                 ticket=ticket,
@@ -376,6 +400,66 @@ class TicketAttachmentUploadView(APIView):
             
             serializer = TicketAttachmentSerializer(attachment, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Ticket.DoesNotExist:
+            return Response(
+                {"error": "Ticket not found or you don't have permission to access it"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class TicketAttachmentDeleteView(APIView):
+    """
+    Delete a ticket attachment.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        operation_id='delete_ticket_attachment',
+        summary='Delete Attachment',
+        description='Delete a file attachment from a ticket.',
+        responses={
+            200: {'description': 'Attachment deleted successfully'},
+            403: {'description': 'Permission denied'},
+            404: {'description': 'Attachment not found'},
+        }
+    )
+    def delete(self, request, ticket_id, attachment_id):
+        try:
+            if request.user.is_staff:
+                ticket = Ticket.objects.get(pk=ticket_id)
+            else:
+                ticket = Ticket.objects.get(pk=ticket_id, user=request.user)
+            
+            try:
+                attachment = TicketAttachment.objects.get(pk=attachment_id, ticket=ticket)
+            except TicketAttachment.DoesNotExist:
+                return Response(
+                    {"error": "Attachment not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Only the uploader or staff can delete
+            if attachment.uploaded_by != request.user and not request.user.is_staff:
+                return Response(
+                    {"error": "You don't have permission to delete this attachment"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            filename = attachment.filename
+            attachment.delete()
+            
+            # Create activity log
+            TicketActivity.objects.create(
+                ticket=ticket,
+                action='attachment_added',  # Using existing action
+                performed_by=request.user,
+                details=f'Attachment deleted: {filename}'
+            )
+            
+            return Response(
+                {"message": "Attachment deleted successfully"},
+                status=status.HTTP_200_OK
+            )
         except Ticket.DoesNotExist:
             return Response(
                 {"error": "Ticket not found or you don't have permission to access it"},
@@ -459,4 +543,24 @@ class AssignedTicketsView(APIView):
         
         tickets = Ticket.objects.filter(assigned_to=request.user)
         serializer = TicketListSerializer(tickets, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class UserOrdersView(APIView):
+    """
+    List all orders for the authenticated user.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        operation_id='list_user_orders',
+        summary='List User Orders',
+        description='Get all orders for the authenticated user to select when creating a ticket.',
+        responses={
+            200: OrderSerializer(many=True),
+        }
+    )
+    def get(self, request):
+        orders = Order.objects.filter(user=request.user).order_by('-created_at')
+        serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
