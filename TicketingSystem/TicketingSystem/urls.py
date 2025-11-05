@@ -17,6 +17,9 @@ urlpatterns = [
     path('api/v1/', include('apps.Tickets.urls')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+    # User API
+    path('api/v1/users/', include('apps.Users.urls')),
 ]
 
 # Serve media files in development
