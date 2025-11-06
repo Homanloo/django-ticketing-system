@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 from datetime import timedelta
-
+from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'apps.Tickets',
     'apps.Users',
+    'minio_storage',
 ]
 
 MIDDLEWARE = [
@@ -117,20 +118,44 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = '/static/'
+MEDIA_URL = '/media/'
+
+# Static files directories
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
+
+# MinIO Storage Configuration
+MINIO_STORAGE_ENDPOINT = os.getenv('MINIO_ENDPOINT')
+MINIO_STORAGE_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY')
+MINIO_STORAGE_SECRET_KEY = os.getenv('MINIO_SECRET_KEY')
+MINIO_STORAGE_USE_HTTPS = False
+MINIO_STORAGE_MEDIA_BUCKET_NAME = config('MINIO_MEDIA_BUCKET_NAME', default='media-bucket')
+MINIO_STORAGE_STATIC_BUCKET_NAME = config('MINIO_STATIC_BUCKET_NAME', default='static-bucket')
+MINIO_STORAGE_AUTO_CREATE_MEDIA_BUCKET = True
+MINIO_STORAGE_AUTO_CREATE_STATIC_BUCKET = True
+MINIO_STORAGE_MEDIA_USE_PRESIGNED = True
+
+# External URL for MinIO (accessible from browser)
+# This is used for presigned URLs so they work from the browser
+MINIO_STORAGE_MEDIA_URL = f"{os.getenv('MINIO_EXTERNAL_ENDPOINT', 'http://localhost:9000')}/{MINIO_STORAGE_MEDIA_BUCKET_NAME}"
+MINIO_STORAGE_STATIC_URL = f"{os.getenv('MINIO_EXTERNAL_ENDPOINT', 'http://localhost:9000')}/{MINIO_STORAGE_STATIC_BUCKET_NAME}" 
+
+# Django 5.x Storage Configuration
+STORAGES = {
+    'default': {
+        'BACKEND': 'minio_storage.storage.MinioMediaStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'minio_storage.storage.MinioStaticStorage',
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# Media files (User uploaded files)
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
 # Django Rest Framework Configuration
 REST_FRAMEWORK = {
@@ -198,3 +223,4 @@ REFRESH_TOKEN_COOKIE_SECURE = not DEBUG  # True in production (HTTPS only)
 REFRESH_TOKEN_COOKIE_HTTPONLY = True  # Prevents JavaScript access
 REFRESH_TOKEN_COOKIE_SAMESITE = 'Lax'  # CSRF protection
 REFRESH_TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24  # 1 day in seconds
+
