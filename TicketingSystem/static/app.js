@@ -86,8 +86,8 @@ function setupEventListeners() {
     });
     
     // Filters
-    document.getElementById('status-filter').addEventListener('change', loadTickets);
-    document.getElementById('priority-filter').addEventListener('change', loadTickets);
+    // document.getElementById('status-filter').addEventListener('change', loadTickets);
+    // document.getElementById('priority-filter').addEventListener('change', loadTickets);
     
     // Close modals on outside click
     document.querySelectorAll('.modal').forEach(modal => {
@@ -318,14 +318,14 @@ async function handleLogout() {
 async function loadTickets() {
     showLoading();
     
-    const statusFilter = document.getElementById('status-filter').value;
-    const priorityFilter = document.getElementById('priority-filter').value;
+    // const statusFilter = document.getElementById('status-filter').value;
+    // const priorityFilter = document.getElementById('priority-filter').value;
     
     let url = `${API_BASE_URL}/my-tickets/`;
     const params = new URLSearchParams();
     
-    if (statusFilter) params.append('status', statusFilter);
-    if (priorityFilter) params.append('priority', priorityFilter);
+    // if (statusFilter) params.append('status', statusFilter);
+    // if (priorityFilter) params.append('priority', priorityFilter);
     
     if (params.toString()) {
         url += `?${params.toString()}`;
